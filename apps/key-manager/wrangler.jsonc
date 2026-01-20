@@ -21,8 +21,8 @@
 	"kv_namespaces": [
 		{
 			"binding": "CREDENTIAL_STORE",
-			"id": "9dd0589696c2467ab8b996f991ca5b3e"
+			"id": "8ec25d40617f49afa5d5b92a366f0b51"
 		}
 	],
-	"routes": [{ "pattern": "keystore.tempo.xyz", "custom_domain": true }]
+	"routes": [{ "pattern": "keys.tempo.xyz", "custom_domain": true }]
 }
