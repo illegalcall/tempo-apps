@@ -20,7 +20,7 @@
 	// For local dev, wrangler will use a local KV emulator
 	"kv_namespaces": [
 		{
-			"binding": "CREDENTIAL_STORE",
+			"binding": "KEY_STORE",
 			"id": "8ec25d40617f49afa5d5b92a366f0b51"
 		}
 	],
