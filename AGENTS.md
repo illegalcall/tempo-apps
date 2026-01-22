@@ -91,6 +91,22 @@ export declare namespace MyComponent {
 - [ ] No outstanding type or lint errors
 - [ ] No console.log statements left (except in tests)
 
+## Pull Request Guidelines
+
+### UI Changes (apps with visual components)
+
+When creating PRs that include UI changes (e.g., `apps/explorer`), include a before/after comparison table in the PR description:
+
+```markdown
+## Screenshots
+
+| Before | After |
+|--------|-------|
+| ![before](url-to-before-screenshot) | ![after](url-to-after-screenshot) |
+```
+
+Add multiple rows if the change affects different views or states.
+
 ## Adding a New Application
 
 1. Create a new directory under `apps/`
