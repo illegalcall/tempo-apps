@@ -1348,6 +1348,10 @@ function TransactionDescCell(props: {
 	accountAddress: Address.Address
 }) {
 	const { transaction, accountAddress } = props
+	// Contract creation tx
+	if (transaction.to === null) {
+		return <span className="text-accent">Contract Creation</span>
+	}
 	if (!transaction.knownEvents.length) {
 		return <span className="text-secondary">No events</span>
 	}

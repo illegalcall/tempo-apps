@@ -215,6 +215,15 @@ export const Route = createFileRoute('/api/address/history/$address')({
 						.orderBy('block_num', sortDirection)
 						.orderBy('tx_hash', sortDirection)
 
+					// Contract deployment transactions: where to is null
+					// We filter by receipt.contractAddress matching the queried address
+					const deploymentTxsQuery = QB.selectFrom('txs')
+						.select(['hash', 'block_num', 'from', 'to', 'value'])
+						.where('chain', '=', chainId)
+						.where('to', 'is', null)
+						.orderBy('block_num', sortDirection)
+						.orderBy('hash', sortDirection)
+
 					let directTxsCountQuery = QB.selectFrom('txs')
 						.select((eb) => eb.ref('hash').as('hash'))
 						.where('chain', '=', chainId)
@@ -266,6 +275,11 @@ export const Route = createFileRoute('/api/address/history/$address')({
 						.where('chain', '=', chainId)
 						.where('address', '=', address)
 
+					const deploymentTxsCountQuery = QB.selectFrom('txs')
+						.select((eb) => eb.ref('hash').as('hash'))
+						.where('chain', '=', chainId)
+						.where('to', 'is', null)
+
 					const bufferSize = Math.min(
 						Math.max(offset + fetchSize * 5, limit * 3),
 						500,
@@ -290,9 +304,11 @@ export const Route = createFileRoute('/api/address/history/$address')({
 						directResult,
 						transferResult,
 						transferEmittedResult,
+						deploymentTxsResult,
 						directCountResult,
 						transferCountResult,
 						transferEmittedCountResult,
+						deploymentTxsCountResult,
 					] = await Promise.all([
 						sources.txs
 							? directTxsQuery.limit(bufferSize).execute()
@@ -306,6 +322,10 @@ export const Route = createFileRoute('/api/address/history/$address')({
 									.execute()
 									.catch(() => emptyTransfer)
 							: Promise.resolve(emptyTransfer),
+						deploymentTxsQuery
+							.limit(bufferSize)
+							.execute()
+							.catch(() => emptyDirect),
 						sources.txs
 							? directTxsCountQuery.limit(HISTORY_COUNT_MAX).execute()
 							: Promise.resolve(emptyCount),
@@ -318,6 +338,10 @@ export const Route = createFileRoute('/api/address/history/$address')({
 									.execute()
 									.catch(() => emptyCount)
 							: Promise.resolve(emptyCount),
+						deploymentTxsCountQuery
+							.limit(HISTORY_COUNT_MAX)
+							.execute()
+							.catch(() => emptyCount),
 					])
 
 					type HashEntry = {
@@ -350,6 +374,32 @@ export const Route = createFileRoute('/api/address/history/$address')({
 								block_num: row.block_num,
 							})
 
+					// Filter deployment txs by contractAddress matching the queried address
+					const deploymentReceipts = await Promise.all(
+						deploymentTxsResult.map((row) =>
+							getTransactionReceipt(client, { hash: row.hash }).catch(
+								() => null,
+							),
+						),
+					)
+					for (let i = 0; i < deploymentTxsResult.length; i++) {
+						const row = deploymentTxsResult[i]
+						const receipt = deploymentReceipts[i]
+						if (
+							receipt &&
+							receipt.contractAddress?.toLowerCase() === address.toLowerCase()
+						) {
+							if (!allHashes.has(row.hash))
+								allHashes.set(row.hash, {
+									hash: row.hash,
+									block_num: row.block_num,
+									from: row.from,
+									to: row.to,
+									value: row.value,
+								})
+						}
+					}
+
 					const sortedHashes = [...allHashes.values()].sort((a, b) => {
 						const blockDiff =
 							sortDirection === 'desc'
@@ -379,12 +429,15 @@ export const Route = createFileRoute('/api/address/history/$address')({
 					addCountHashes(transferCountResult)
 					addCountHashes(transferEmittedCountResult)
 
+					addCountHashes(deploymentTxsCountResult)
+
 					const totalCount = countHashes.size
 					const countCapped =
 						countHashes.size >= HISTORY_COUNT_MAX ||
 						directCountResult.length >= HISTORY_COUNT_MAX ||
 						transferCountResult.length >= HISTORY_COUNT_MAX ||
-						transferEmittedCountResult.length >= HISTORY_COUNT_MAX
+						transferEmittedCountResult.length >= HISTORY_COUNT_MAX ||
+						deploymentTxsCountResult.length >= HISTORY_COUNT_MAX
 
 					if (finalHashes.length === 0) {
 						return Response.json({
